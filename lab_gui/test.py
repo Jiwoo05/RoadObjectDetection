@@ -1,6 +1,10 @@
 from PyQt5.QtWidgets import QApplication, QWidget, QGridLayout, QHBoxLayout, QPushButton, QGroupBox, QLabel, QVBoxLayout, QFileDialog
 from PyQt5.QtGui import QPixmap
 import sys
+import tensorflow as tf
+import cv2
+import numpy as np
+import os
 
 class ClassificationAI(QWidget):
     def __init__(self):
@@ -46,32 +50,63 @@ class ClassificationAI(QWidget):
         self.setLayout(self.main_layout)
 
     def button1_click(self):
+        self.train_dataset = tf.keras.preprocessing.image_dataset_from_directory(
+            '../classification_data/',
+            image_size=(224, 224),
+            label_mode='categorical'
+        )
+        self.class_names = self.train_dataset.class_names
+        self.button1.setEnabled(False)
+        self.button1.setText('데이터 불러오기 완료')
+
+    def button2_click(self):
+        self.model = tf.keras.models.load_model('../models/mymodel.h5')
+
+        if not os.path.exists('../logs'):
+            os.mkdir('../logs')
+
+        tensorboard = tf.keras.callbacks.TensorBoard(log_dir='../logs')
+
+        learning_rate = 0.001
+        self.model.compile(
+            loss=tf.keras.losses.CategoricalCrossentropy(from_logits=True),
+            optimizer=tf.keras.optimizers.RMSprop(learning_rate=learning_rate),
+            metrics=['accuracy']
+        )
+        self.model.fit(self.train_dataset, epochs=5)
+        self.button2.setEnabled(False)
+        self.button2.setText('모델 학습 완료')
+
+    def button3_click(self):
+        if not os.path.exists('../models'):
+            os.mkdir('../models')
+        self.model.save('../models/classification_model.h5')
+        self.button3.setEnabled(False)
+        self.button3.setText('모델 저장 완료')
+
+    def button4_click(self):
+        self.model = tf.keras.models.load_model('../models/classification_model.h5')
+        self.button4.setEnabled(False)
+        self.button4.setText('모델 불러오기 완료')
+
+
+    def button5_click(self):
         path, _ = QFileDialog.getOpenFileName(self, 'ABCD', '../classification_data', 'Image Files (*.jpg *.png)')
         if path == '':
             print('취소')
         else:
             print('PATH', path)
-            self.button1.setEnabled(False)
-            self.button1.setText('데이터 불러오기 완료')
+            self.button5.setEnabled(False)
+            self.button5.setText('모델 불러오기 완료')
             pixmap = QPixmap(path)
             self.image_label.setPixmap(pixmap)
 
-    def button2_click(self):
-        self.button2.setEnabled(False)
 
-    def button3_click(self):
-        self.button3.setEnabled(False)
-
-    def button4_click(self):
-        self.button4.setEnabled(False)
-
-    def button5_click(self):
-        self.button5.setEnabled(False)
-
-
-
+def except_hook(cls, exception, traceback):
+    sys.__excepthook__(cls, exception, traceback)
 
 if __name__ == '__main__':
+    sys.excepthook = except_hook
     app = QApplication(sys.argv)
     classification_ai = ClassificationAI()
     classification_ai.show()
