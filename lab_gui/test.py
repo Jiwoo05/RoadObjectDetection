@@ -28,6 +28,8 @@ class ClassificationAI(QWidget):
 
         self.image_label = QLabel(self)
 
+        self.text_label = QLabel(self)
+        self.text_label.setText(' ')
 
         self.hbox_layout = QHBoxLayout()
         self.hbox_layout.addWidget(self.button1)
@@ -39,8 +41,12 @@ class ClassificationAI(QWidget):
         self.vbox_layout = QVBoxLayout()
         self.vbox_layout.addWidget(self.image_label)
 
+        self.vbox_layout2 = QVBoxLayout()
+        self.vbox_layout2.addWidget(self.text_label)
+
         self.group_box1.setLayout(self.hbox_layout)
         self.group_box2.setLayout(self.vbox_layout)
+        self.group_box3.setLayout(self.vbox_layout2)
 
         self.main_layout = QGridLayout()
         self.main_layout.addWidget(self.group_box1, 0, 0, 1, 2)
@@ -49,6 +55,7 @@ class ClassificationAI(QWidget):
 
         self.setLayout(self.main_layout)
 
+    # 데이터 불러오기
     def button1_click(self):
         self.train_dataset = tf.keras.preprocessing.image_dataset_from_directory(
             '../classification_data/',
@@ -59,6 +66,7 @@ class ClassificationAI(QWidget):
         self.button1.setEnabled(False)
         self.button1.setText('데이터 불러오기 완료')
 
+    # 모델 학습
     def button2_click(self):
         self.model = tf.keras.models.load_model('../models/mymodel.h5')
 
@@ -73,10 +81,12 @@ class ClassificationAI(QWidget):
             optimizer=tf.keras.optimizers.RMSprop(learning_rate=learning_rate),
             metrics=['accuracy']
         )
+        # 학습 할 횟수 = 5
         self.model.fit(self.train_dataset, epochs=5)
         self.button2.setEnabled(False)
         self.button2.setText('모델 학습 완료')
 
+    # 모델 저장
     def button3_click(self):
         if not os.path.exists('../models'):
             os.mkdir('../models')
@@ -84,23 +94,38 @@ class ClassificationAI(QWidget):
         self.button3.setEnabled(False)
         self.button3.setText('모델 저장 완료')
 
+    # 모델 불러오기
     def button4_click(self):
         self.model = tf.keras.models.load_model('../models/classification_model.h5')
         self.button4.setEnabled(False)
         self.button4.setText('모델 불러오기 완료')
 
-
+    # 이미지 분류
     def button5_click(self):
+        # 이미지를 가져올 경로
         path, _ = QFileDialog.getOpenFileName(self, 'ABCD', '../classification_data', 'Image Files (*.jpg *.png)')
         if path == '':
+            # 이미지를 선택하지 않았을 때.
             print('취소')
         else:
+            # 이미지를 선택하였을때 그경로 표시하기.
             print('PATH', path)
             self.button5.setEnabled(False)
             self.button5.setText('모델 불러오기 완료')
             pixmap = QPixmap(path)
             self.image_label.setPixmap(pixmap)
+            result = self.predict(path)
+            self.text_label.setText(result)
 
+
+    # 예측
+    def predict(self, path):
+        image = cv2.imread(path)
+        resize_image = cv2.resize(image, (224, 224))
+        data = np.array([resize_image])
+        predict = self.model.predict(data)
+        index = np.argmax(predict)
+        return self.class_names[index]
 
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
